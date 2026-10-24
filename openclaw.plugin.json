@@ -1,0 +1,316 @@
+{
+  "id": "pipbit",
+  "name": "Pipbit",
+  "description": "Pipbit Connect for OpenClaw: your OpenClaw agent becomes one of your Pipbit's voice agents, added by saying a six-digit code to your Pipbit.",
+  "version": "0.1.0",
+  "categories": [
+    "channels"
+  ],
+  "activation": {
+    "onStartup": false
+  },
+  "channels": [
+    "pipbit"
+  ],
+  "channelConfigs": {
+    "pipbit": {
+      "label": "Pipbit",
+      "description": "A paired Pipbit voice device: people talk to this agent by voice through Pipbit Connect.",
+      "schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "OpenClaw's own label for this account."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "agentName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "The agent's internal name on Pipbit, as the pairing claim returned it."
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "The spoken name Pip knows this agent by, recorded at pairing. Changing it here does not rename the agent on the Pipbit."
+          },
+          "secret": {
+            "description": "The agent secret, issued by Pipbit at pairing and saved here by setup; never shown or logged. A plain string, a ${ENV_VAR} reference, or a SecretRef object.",
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "source",
+                  "id"
+                ],
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "provider": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            ]
+          },
+          "baseUrl": {
+            "type": "string",
+            "pattern": "^https?://",
+            "description": "Pipbit's HTTPS API base."
+          },
+          "connectUrl": {
+            "type": "string",
+            "pattern": "^wss?://",
+            "description": "Pipbit Connect's WebSocket address."
+          },
+          "agentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Which OpenClaw agent answers; the default agent when unset."
+          },
+          "pairedAt": {
+            "type": "string",
+            "description": "When the pairing was claimed (ISO time)."
+          },
+          "healthMonitor": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              }
+            }
+          },
+          "responsePrefix": {
+            "type": "string",
+            "description": "Accepted so OpenClaw's reply prefix setting validates here; spoken replies never carry a prefix."
+          },
+          "accounts": {
+            "type": "object",
+            "description": "More paired Pipbit agents, keyed by account id.",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "OpenClaw's own label for this account."
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "agentName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "description": "The agent's internal name on Pipbit, as the pairing claim returned it."
+                },
+                "displayName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "description": "The spoken name Pip knows this agent by, recorded at pairing. Changing it here does not rename the agent on the Pipbit."
+                },
+                "secret": {
+                  "description": "The agent secret, issued by Pipbit at pairing and saved here by setup; never shown or logged. A plain string, a ${ENV_VAR} reference, or a SecretRef object.",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "source",
+                        "id"
+                      ],
+                      "properties": {
+                        "source": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "provider": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "baseUrl": {
+                  "type": "string",
+                  "pattern": "^https?://",
+                  "description": "Pipbit's HTTPS API base."
+                },
+                "connectUrl": {
+                  "type": "string",
+                  "pattern": "^wss?://",
+                  "description": "Pipbit Connect's WebSocket address."
+                },
+                "agentId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Which OpenClaw agent answers; the default agent when unset."
+                },
+                "pairedAt": {
+                  "type": "string",
+                  "description": "When the pairing was claimed (ISO time)."
+                },
+                "healthMonitor": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "responsePrefix": {
+                  "type": "string",
+                  "description": "Accepted so OpenClaw's reply prefix setting validates here; spoken replies never carry a prefix."
+                }
+              }
+            }
+          },
+          "defaultAccount": {
+            "type": "string",
+            "minLength": 1
+          },
+          "proactiveSpeech": {
+            "type": "boolean",
+            "description": "Let the agent speak on the owner's Pipbit unprompted (the pipbit_speak tool). Off unless true."
+          }
+        }
+      },
+      "uiHints": {
+        "secret": {
+          "label": "Agent secret",
+          "sensitive": true,
+          "advanced": true,
+          "help": "Issued by Pipbit at pairing and saved here by setup; it is never shown or logged. Keep it private."
+        },
+        "agentName": {
+          "label": "Agent name on Pipbit",
+          "advanced": true
+        },
+        "displayName": {
+          "label": "Spoken name (recorded at pairing)",
+          "advanced": true,
+          "help": "The name Pip knows this agent by, recorded at pairing. Changing it here does not rename the agent on your Pipbit."
+        },
+        "baseUrl": {
+          "label": "Pipbit API address",
+          "advanced": true
+        },
+        "connectUrl": {
+          "label": "Pipbit Connect address",
+          "advanced": true
+        },
+        "agentId": {
+          "label": "OpenClaw agent",
+          "advanced": true
+        },
+        "responsePrefix": {
+          "label": "Reply prefix (not used)",
+          "advanced": true,
+          "help": "Pipbit replies are spoken, so they never carry OpenClaw's reply prefix."
+        },
+        "proactiveSpeech": {
+          "label": "Speak unprompted",
+          "help": "Lets the agent say things on your Pipbit without being asked (reminders). Off by default."
+        },
+        "accounts.*.secret": {
+          "label": "Agent secret",
+          "sensitive": true,
+          "advanced": true,
+          "help": "Issued by Pipbit at pairing and saved here by setup; it is never shown or logged. Keep it private."
+        },
+        "accounts.*.agentName": {
+          "label": "Agent name on Pipbit",
+          "advanced": true
+        },
+        "accounts.*.displayName": {
+          "label": "Spoken name (recorded at pairing)",
+          "advanced": true,
+          "help": "The name Pip knows this agent by, recorded at pairing. Changing it here does not rename the agent on your Pipbit."
+        },
+        "accounts.*.baseUrl": {
+          "label": "Pipbit API address",
+          "advanced": true
+        },
+        "accounts.*.connectUrl": {
+          "label": "Pipbit Connect address",
+          "advanced": true
+        },
+        "accounts.*.agentId": {
+          "label": "OpenClaw agent",
+          "advanced": true
+        },
+        "accounts.*.responsePrefix": {
+          "label": "Reply prefix (not used)",
+          "advanced": true,
+          "help": "Pipbit replies are spoken, so they never carry OpenClaw's reply prefix."
+        }
+      },
+      "commands": {
+        "nativeCommandsAutoEnabled": false,
+        "nativeSkillsAutoEnabled": false
+      }
+    }
+  },
+  "contracts": {
+    "tools": [
+      "pipbit_handback",
+      "pipbit_speak"
+    ]
+  },
+  "toolMetadata": {
+    "pipbit_handback": {
+      "profiles": [
+        "minimal",
+        "coding",
+        "messaging",
+        "full"
+      ]
+    },
+    "pipbit_speak": {
+      "optional": true,
+      "profiles": [
+        "minimal",
+        "coding",
+        "messaging",
+        "full"
+      ]
+    }
+  },
+  "skills": [
+    "./skills"
+  ],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

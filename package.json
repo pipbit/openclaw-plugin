@@ -1,0 +1,101 @@
+{
+  "name": "@pipbit/pipbit",
+  "version": "0.1.0",
+  "description": "Pipbit Connect for OpenClaw: your OpenClaw agent becomes one of your Pipbit's voice agents.",
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "openclaw-channel",
+    "pipbit",
+    "pipbit-connect",
+    "voice",
+    "voice-assistant"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://pipworks.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pipbit/openclaw-plugin.git"
+  },
+  "engines": {
+    "node": ">=24.16.0 <25 || >=26.1.0"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./setup-entry": "./dist/setup-entry.js"
+  },
+  "files": [
+    "dist/**",
+    "openclaw.plugin.json",
+    "skills/**",
+    "assets/**",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "harness": "node conformance/harness.ts",
+    "check-bundle": "node -e \"const fs=require('node:fs');const want=require('./package.json').dependencies.ws;let got=null;try{got=JSON.parse(fs.readFileSync('node_modules/ws/package.json','utf8')).version}catch{}if(got!==want){console.error('prepack: node_modules/ws is '+(got??'missing')+', but the package bundles ws '+want+'. Run npm ci first.');process.exit(1)}\"",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prepack": "npm run check-bundle && npm run clean && npm run build"
+  },
+  "dependencies": {
+    "ws": "8.21.3"
+  },
+  "bundledDependencies": [
+    "ws"
+  ],
+  "peerDependencies": {
+    "openclaw": ">=2026.9.4 <2026.10.0"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "24.13.6",
+    "@types/ws": "8.18.1",
+    "ajv": "8.20.0",
+    "openclaw": "2026.9.6",
+    "typescript": "6.0.3"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "runtimeExtensions": [
+      "./dist/index.js"
+    ],
+    "setupEntry": "./setup-entry.ts",
+    "runtimeSetupEntry": "./dist/setup-entry.js",
+    "channel": {
+      "id": "pipbit",
+      "label": "Pipbit",
+      "selectionLabel": "Pipbit (voice device)",
+      "detailLabel": "Pipbit Connect",
+      "docsPath": "https://github.com/pipbit/openclaw-plugin#readme",
+      "docsLabel": "pipbit",
+      "blurb": "Talk to this agent by voice on your Pipbit. You add it by saying a six-digit code to your Pipbit.",
+      "systemImage": "waveform",
+      "markdownCapable": false
+    },
+    "install": {
+      "clawhubSpec": "clawhub:@pipbit/pipbit",
+      "defaultChoice": "clawhub",
+      "minHostVersion": ">=2026.9.4"
+    },
+    "compat": {
+      "pluginApi": ">=2026.9.4 <2026.10.0",
+      "minGatewayVersion": "2026.9.4"
+    },
+    "build": {
+      "openclawVersion": "2026.9.6",
+      "pluginSdkVersion": "2026.9.6"
+    }
+  }
+}
