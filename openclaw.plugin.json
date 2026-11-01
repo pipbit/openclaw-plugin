@@ -2,12 +2,16 @@
   "id": "pipbit",
   "name": "Pipbit",
   "description": "Pipbit Connect for OpenClaw: your OpenClaw agent becomes one of your Pipbit's voice agents, added by saying a six-digit code to your Pipbit.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "categories": [
     "channels"
   ],
   "activation": {
     "onStartup": false
+  },
+  "doctorContract": {
+    "configRepair": true,
+    "stateMigrations": []
   },
   "channels": [
     "pipbit"

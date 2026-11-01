@@ -18,6 +18,14 @@
 // Control UI. The Reconnecting reason is kept in stateReason, which
 // OpenClaw's status commands drop for a running account, so the Gateway
 // log carries it instead (gateway.ts logs one line per new drop).
+//
+// Every patch also carries the status word (statusState). From OpenClaw
+// 2026.10 a plain status read (no probe, the default for `openclaw channels
+// status` and the Control UI) no longer calls the status adapter's
+// buildAccountSnapshot: it shows the account as the Gateway's setStatus
+// calls left it, so whatever the adapter adds has to be published here too
+// (gateway.ts publishes the rest). On 2026.9 the adapter still runs and
+// overwrites these with the same values.
 
 import type { ChannelAccountSnapshot } from "openclaw/plugin-sdk/channel-contract";
 import type { LinkState, LinkStateName, PipbitAccountStateFile } from "../shared/contracts.ts";
@@ -236,6 +244,7 @@ export function statusPatchForLinkState(state: LinkState, context: LinkStatusCon
         connected: false,
         lifecycle: "starting",
         stateReason: "Connecting",
+        statusState: "Connecting",
       };
       if (isNewRedial(state, context.previous)) {
         // A first dial failed and another is scheduled: see "reconnecting".
@@ -254,6 +263,7 @@ export function statusPatchForLinkState(state: LinkState, context: LinkStatusCon
         lastError: null,
         reconnectAttempts: 0,
         stateReason: "Connected",
+        statusState: "Connected",
         terminalDisconnect: undefined,
       };
     case "reconnecting": {
@@ -265,6 +275,7 @@ export function statusPatchForLinkState(state: LinkState, context: LinkStatusCon
         reconnectAttempts: context.reconnectAttempts,
         lastError: null,
         stateReason: `Reconnecting: ${describeReconnect(state)}`,
+        statusState: "Reconnecting",
       };
       // Stamped on every new drop and on every newly scheduled redial.
       // OpenClaw's health check allows a disconnected account 120 s from
@@ -287,6 +298,7 @@ export function statusPatchForLinkState(state: LinkState, context: LinkStatusCon
         lastDisconnect: disconnectRecord(state, now),
         lastError: describeRefusal(state.reason, state.detail, state.lastCloseCode),
         stateReason: "Needs attention",
+        statusState: "Needs attention",
       };
     case "stopped":
     default:
@@ -296,6 +308,7 @@ export function statusPatchForLinkState(state: LinkState, context: LinkStatusCon
         connected: false,
         lifecycle: "stopped",
         stateReason: "Stopped",
+        statusState: "Not running",
       };
   }
 }
@@ -310,6 +323,7 @@ export function blockedStatusPatch(accountId: string, message: string): ChannelA
     terminalDisconnect: true,
     lastError: message,
     stateReason: "Needs attention",
+    statusState: "Needs attention",
   };
 }
 

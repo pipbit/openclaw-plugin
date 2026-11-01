@@ -11,6 +11,7 @@
     "index.ts",
     "setup-entry.ts",
     "secret-contract-api.ts",
+    "doctor-contract-api.ts",
     "src/**/*.ts"
   ]
 }

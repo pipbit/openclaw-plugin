@@ -22,7 +22,7 @@ import { join } from "node:path";
 
 /** OpenClaw plugin id, channel id and config key (`channels.pipbit`). */
 export const CHANNEL_ID = "pipbit";
-export const PLUGIN_VERSION = "0.1.0";
+export const PLUGIN_VERSION = "0.1.1";
 
 /** The two agent tools the plugin registers (listed in openclaw.plugin.json). */
 export const HANDBACK_TOOL_NAME = "pipbit_handback";
@@ -212,6 +212,15 @@ export interface PushMessageParams {
   subjectId?: string;
   deviceId?: string;
   sessionId?: string;
+  /**
+   * Since connect spec 1.10.0, each sent only when given: how the message
+   * reaches the person ("speak" or "announce"), the word the manager
+   * assistant introduces it with, and the sender's own id for the
+   * platform's 24-hour duplicate check. The channel itself sends none.
+   */
+  delivery?: string;
+  hint?: string;
+  clientMessageId?: string;
 }
 
 /** Minimal WebSocket surface the client needs; `ws` provides it. */

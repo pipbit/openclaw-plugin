@@ -460,7 +460,8 @@ export function isProactiveSpeechEnabled(cfg: OpenClawConfig | null | undefined)
   return readPipbitSection(cfg).proactiveSpeech === true;
 }
 
-function describePipbitAccount(account: ResolvedPipbitAccount): ChannelAccountSnapshot {
+/** The account's own config facts for its status: name, URL, where the secret comes from. */
+export function describePipbitAccount(account: ResolvedPipbitAccount): ChannelAccountSnapshot {
   const snapshot: ChannelAccountSnapshot = {
     accountId: account.accountId,
     enabled: account.enabled,
@@ -637,9 +638,13 @@ export function createPipbitStatusAdapter(
       if (!runtime?.lastError && label === "Needs attention" && detail) {
         snapshot.lastError = detail;
       }
+      // Always from this config: the runtime spread above may carry the
+      // Gateway's last published list (gateway.ts), which can be older.
       const configIssues = await collectPipbitConfigIssues(cfg, account);
       if (configIssues.length > 0) {
         (snapshot as Record<string, unknown>)[PIPBIT_CONFIG_ISSUES_KEY] = configIssues;
+      } else {
+        delete (snapshot as Record<string, unknown>)[PIPBIT_CONFIG_ISSUES_KEY];
       }
       return snapshot;
     },

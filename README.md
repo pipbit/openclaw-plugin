@@ -14,8 +14,10 @@ and no webhook.
 
 ## Requirements
 
-- OpenClaw 2026.9.4 or a later 2026.9 release (see [Compatibility](#compatibility)).
-- Node 24.16 or later (or 26.1 or later), which OpenClaw itself needs.
+- OpenClaw 2026.9.4 or later (see [Compatibility](#compatibility)).
+- A Node version your OpenClaw release accepts. Node 24.22.1 or later (or
+  26.12.1 or later) works with every OpenClaw release this plugin supports;
+  some releases also accept 24.16 or later (or 26.1 or later).
 - A Pipbit you own, and outbound internet access to `api.pipbit.ai` (HTTPS
   and WebSocket, port 443).
 
@@ -35,7 +37,7 @@ To install from a checkout instead, build it and install the packed tarball:
 
 ```sh
 npm ci && npm run build && npm pack
-openclaw plugins install npm-pack:./pipbit-pipbit-0.1.0.tgz --force
+openclaw plugins install npm-pack:./pipbit-pipbit-<version>.tgz --force
 openclaw plugins inspect pipbit --runtime --json
 ```
 
@@ -55,8 +57,46 @@ themselves.
   (`openclaw config get plugins.allow` shows it), add `pipbit` to it.
 - On OpenClaw 2026.9.4, restart the Gateway after installing. In a Docker
   install, restarting the container does that.
-- Keep the tarball somewhere that survives a restart (on Hostinger, under
-  `/data`): OpenClaw looks for it again when it updates its plugins.
+- If you installed from a tarball, keep it somewhere that survives a restart
+  (on Hostinger, under `/data`): OpenClaw looks for it again when it updates
+  its plugins. An install from ClawHub needs nothing kept.
+
+## Updating
+
+For an install from ClawHub made without a version, `openclaw plugins
+update pipbit` takes the newest release, and so does `openclaw plugins
+update --all`, which some hosted setups (Hostinger's Docker template among
+them) run at every start. An install pinned to a version stays on it, and
+a tarball install is updated from its tarball. A release your OpenClaw does
+not support is refused and the installed one kept. Your pairing, settings
+and spoken name stay as they are.
+
+If OpenClaw was upgraded to 2026.10 while plugin 0.1.0 was installed,
+OpenClaw stopped loading it ("plugin requires plugin API >=2026.9.4
+<2026.10.0") and reports an unfinished "data/settings upgrade" for
+`pipbit`. Install this version over the old one:
+
+```sh
+openclaw plugins install clawhub:@pipbit/pipbit --force
+```
+
+In a terminal, OpenClaw lists what the plugin declares and asks you to
+accept it. Where it cannot ask (no interactive terminal, as in a plain
+`docker exec`), it stops with "requires capability consent": run the same
+command again with `--accept-capabilities`. The pending upgrade clears with
+the install. If `openclaw plugins list` then shows Pipbit as disabled (an
+install never undoes a disable), run `openclaw plugins enable pipbit`, and
+restart the Gateway only if the channel still does not come up.
+Do not run `openclaw plugins uninstall pipbit` first: uninstalling deletes
+the `channels.pipbit` config, and with it the pairing, so the agent would
+have to be paired again by voice.
+
+If an install or update stops with "Plugin config repair could not be
+inspected: pipbit", look at `openclaw config get plugins.load.paths`: an
+entry there that points to a folder that no longer exists, or to a plugin
+OpenClaw skips, keeps OpenClaw from checking any plugin's config repair.
+Remove or fix that entry and run the command again; the plugin itself is
+fine.
 
 ## Set up
 
@@ -102,8 +142,10 @@ code to type and no web page to visit.
   pairing. To pair again, first say "remove Clementine" to your Pipbit, then
   answer yes. Pairing again while the old one is still there would leave two
   agents with the same name on your Pipbit, and Pip could not tell them
-  apart. If Pipbit has already turned the saved pairing away, setup goes by
-  the reason:
+  apart. Pairing again brings back the nickname and the voice you chose for
+  the agent through Pip; its internal name gets a short suffix, because the
+  old one stays taken. If Pipbit has already turned the saved pairing away,
+  setup goes by the reason:
   - The agent is gone from your Pipbit (you said "remove Clementine", it was
     deleted, or Pipbit Connect was switched off for it): setup says so in one
     line and pairs again without asking.
@@ -118,7 +160,8 @@ code to type and no web page to visit.
     a minute off, fixing the clock is enough.
 - **A lost answer.** If setup says the agent was probably added but its key
   was lost on the way (a dropped connection at the last moment), say "remove
-  Clementine" to your Pipbit, then run setup again.
+  Clementine" to your Pipbit, then run setup again. Nothing you chose is
+  lost: the new pairing brings back the nickname and the voice.
 
 OpenClaw saves the config only when its whole setup is done, and it may ask
 a question or two of its own first (for example who may administer OpenClaw
@@ -278,13 +321,16 @@ security control, so do not rely on it to protect anything that matters.
 
 - **From your Pipbit**: say "remove Clementine" to your Pipbit. The plugin
   then reads Needs attention and stops dialling. Running setup again adds it
-  back (under the same spoken name; its internal name gets a short suffix,
-  because the old one stays taken).
+  back under the same spoken name, with the nickname and the voice you chose
+  for it through Pip; its internal name gets a short suffix, because the old
+  one stays taken.
 - **From OpenClaw**: first say "remove Clementine" to your Pipbit, so Pip
   does not keep offering an agent that can no longer connect. Then run
   `openclaw channels remove --channel pipbit --delete` (add
   `--account <id>` for a named account). It deletes the account's config,
-  its secret and its state file. Without `--delete` the command only
+  its secret and its state file (on OpenClaw 2026.10.10 and later, see
+  [Privacy](#privacy) for the copy in OpenClaw's secret store). Without
+  `--delete` the command only
   switches the account off and keeps its config. To remove the plugin as
   well, run `openclaw plugins uninstall pipbit`, which also removes any
   `channels.pipbit` config left behind.
@@ -305,6 +351,15 @@ security control, so do not rely on it to protect anything that matters.
   its own account. On the channel's page in the Control UI the secret sits
   under Advanced settings, hidden; setup writes it, so there is no need to
   edit it there.
+- From OpenClaw 2026.10.10 (a beta when this release was made), setup saves
+  a new secret in OpenClaw's own protected secret store, and `openclaw.json`
+  keeps only a reference to it (`"source": "store"`, with an `id` starting
+  `CHANNEL_SETUP_`). The plugin reads it through that reference as before.
+  Removing the account then leaves the stored secret behind, and so does
+  each pairing again. `openclaw secrets store list` shows the entries (every
+  channel's are named `CHANNEL_SETUP_...`, so note the `id` in
+  `openclaw.json` before you remove or pair again), and `openclaw secrets
+  store rm <id>` removes one.
 - The secret itself never travels: the plugin proves it holds it with a
   signature when it connects.
 - The plugin logs no pairing code, session token or reply token. It never
@@ -317,17 +372,22 @@ security control, so do not rely on it to protect anything that matters.
 
 ## Compatibility
 
-OpenClaw's plugin API is experimental and changes between releases, so the
-plugin declares the range it supports. It is built and type-checked against
-OpenClaw 2026.9.6 and supports 2026.9.4 up to, not including, 2026.10.0:
-`openclaw.compat.pluginApi` is `>=2026.9.4 <2026.10.0`. OpenClaw refuses to
-install or load it outside that range rather than failing at run time. On
-2026.9.4, installing a plugin needs one Gateway restart; later releases pick
-it up without one. The install hint in `package.json` (`openclaw.install`)
+OpenClaw's plugin API is experimental and changes between releases. The
+plugin is built and type-checked against OpenClaw 2026.10.7 and declares
+2026.9.4 and later: `openclaw.compat.pluginApi` is `>=2026.9.4`, with no
+upper bound, as OpenClaw's own plugins declare theirs. This release was
+tested on 2026.9.4, 2026.9.6, 2026.9.36 (the extended-stable line), 2026.10.7
+and 2026.10.9, and each new OpenClaw release is tested again; a release
+that changes something the plugin relies on gets a plugin release of its
+own. OpenClaw refuses to install or load it below 2026.9.4. On 2026.9.4,
+installing a plugin needs one
+Gateway restart; later releases pick it up without one. The plugin declares
+an empty doctor contract (`doctorContract` in `openclaw.plugin.json`): it has
+no data or settings for OpenClaw to migrate, and OpenClaw's upgrade checks
+need to be told so. The install hint in `package.json` (`openclaw.install`)
 names ClawHub only, on purpose: given an npm package name there, Set up in
 the Control UI on 2026.9.4 tries to install the already installed plugin
-from npm and never reaches the pairing sentence. Each new OpenClaw release
-line needs a re-test and a new plugin release.
+from npm and never reaches the pairing sentence.
 
 ## Development
 

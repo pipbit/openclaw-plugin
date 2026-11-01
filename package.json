@@ -1,6 +1,6 @@
 {
   "name": "@pipbit/pipbit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pipbit Connect for OpenClaw: your OpenClaw agent becomes one of your Pipbit's voice agents.",
   "keywords": [
     "openclaw",
@@ -50,7 +50,7 @@
     "ws"
   ],
   "peerDependencies": {
-    "openclaw": ">=2026.9.4 <2026.10.0"
+    "openclaw": ">=2026.9.4"
   },
   "peerDependenciesMeta": {
     "openclaw": {
@@ -61,7 +61,7 @@
     "@types/node": "24.13.6",
     "@types/ws": "8.18.1",
     "ajv": "8.20.0",
-    "openclaw": "2026.9.6",
+    "openclaw": "2026.10.7",
     "typescript": "6.0.3"
   },
   "openclaw": {
@@ -90,12 +90,12 @@
       "minHostVersion": ">=2026.9.4"
     },
     "compat": {
-      "pluginApi": ">=2026.9.4 <2026.10.0",
+      "pluginApi": ">=2026.9.4",
       "minGatewayVersion": "2026.9.4"
     },
     "build": {
-      "openclawVersion": "2026.9.6",
-      "pluginSdkVersion": "2026.9.6"
+      "openclawVersion": "2026.10.7",
+      "pluginSdkVersion": "2026.10.7"
     }
   }
 }

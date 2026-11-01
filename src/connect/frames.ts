@@ -231,6 +231,10 @@ export interface MessageFrameInput {
   subjectId?: string;
   deviceId?: string;
   sessionId?: string;
+  /** Since spec 1.10.0; absent ones stay off the frame, which is then what it was before. */
+  delivery?: string;
+  hint?: string;
+  clientMessageId?: string;
 }
 
 /** The body of a message frame (the client adds type and id when it sends). */
@@ -244,6 +248,15 @@ export function buildMessageBody(input: MessageFrameInput): Frame {
   }
   if (input.sessionId !== undefined) {
     body["session_id"] = input.sessionId;
+  }
+  if (input.delivery !== undefined) {
+    body["delivery"] = input.delivery;
+  }
+  if (input.hint !== undefined) {
+    body["hint"] = input.hint;
+  }
+  if (input.clientMessageId !== undefined) {
+    body["client_message_id"] = input.clientMessageId;
   }
   return body;
 }

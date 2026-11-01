@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.1.1 (2026-11-01)
+
+Support for OpenClaw 2026.10. Nothing changes in how the plugin pairs,
+answers or hands back.
+
+- **OpenClaw 2026.10 and later.** The plugin now installs and loads on
+  OpenClaw 2026.9.4 and later, with no upper bound (0.1.0 stopped below
+  2026.10.0, so 2026.10 refused it: "plugin requires plugin API"). Built
+  against 2026.10.7; tested on 2026.9.4, 2026.9.6, 2026.9.36, 2026.10.7 and
+  2026.10.9.
+- **Upgrading from 0.1.0 on a host already on 2026.10.** The plugin now
+  declares that it has no data or settings for OpenClaw to migrate (an
+  empty doctor contract), so the unfinished "data/settings upgrade" that
+  OpenClaw 2026.10 records for a refused 0.1.0 clears when this version is
+  installed over it: `openclaw plugins install clawhub:@pipbit/pipbit
+  --force`. Install over the old version; uninstalling first deletes the
+  pairing (see Updating in the README).
+- **Status on OpenClaw 2026.10.** A plain `openclaw channels status` and the
+  Control UI's channel page show the account's name and the plugin's config
+  warnings again (the tool policy removes `pipbit_handback`, or several
+  agents and none set to answer), and the status word is back in the
+  `--json` output. OpenClaw 2026.10 no longer asks the plugin for them
+  except on a probe, so the plugin now publishes them while the account
+  runs, re-checks the config every 30 seconds, and withdraws the warnings
+  when the account stops.
+- **Pipbit Connect spec 1.10.0.** The connect client can send a message's
+  `delivery`, `hint` and `client_message_id`. The channel itself sends none
+  of them, so nothing it sends changes.
+- **README.** An Updating section; on OpenClaw 2026.10.10 and later a secret
+  that setup saves lives in OpenClaw's secret store and stays there after a
+  removal; the note about keeping the tarball applies to tarball installs
+  only.
+
 ## 0.1.0 (2026-10-24)
 
 The first release: an OpenClaw agent becomes one of your Pipbit's voice

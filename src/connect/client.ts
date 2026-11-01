@@ -337,11 +337,18 @@ export class ConnectClient implements ConnectClientApi {
     if (subjectId === undefined && deviceId === undefined) {
       throw new InvalidRequestError("Provide either 'subject_id' or 'device_id' when pushing a message.");
     }
+    // Spec 1.10.0, as the SDK's push_message: the platform checks the words.
+    const delivery = optionalArgument(params?.delivery, "delivery");
+    const hint = optionalArgument(params?.hint, "hint");
+    const clientMessageId = optionalClientMessageId(params?.clientMessageId);
     const body = buildMessageBody({
       text,
       ...(subjectId !== undefined ? { subjectId } : {}),
       ...(deviceId !== undefined ? { deviceId } : {}),
       ...(sessionId !== undefined ? { sessionId } : {}),
+      ...(delivery !== undefined ? { delivery } : {}),
+      ...(hint !== undefined ? { hint } : {}),
+      ...(clientMessageId !== undefined ? { clientMessageId } : {}),
     });
     return this.#push("message", body, false, { ms: PUSH_READY_WAIT_MS, whileRunning: false });
   }
@@ -1350,6 +1357,23 @@ function optionalArgument(value: unknown, field: string): string | undefined {
     return undefined;
   }
   return requireArgument(value, field);
+}
+
+// The shape of a message's client_message_id (spec 1.10.0, message.json),
+// checked here as the SDK checks it: the rule is fixed by the contract, so a
+// bad id is refused before it costs a round trip.
+const CLIENT_MESSAGE_ID_PATTERN = /^[A-Za-z0-9._:-]{1,64}$/;
+
+function optionalClientMessageId(value: unknown): string | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== "string" || !CLIENT_MESSAGE_ID_PATTERN.test(value)) {
+    throw new InvalidRequestError(
+      "The 'client_message_id' argument must be 1 to 64 characters of letters, digits, '.', '_', ':' or '-'.",
+    );
+  }
+  return value;
 }
 
 /** The reply frame's body, checked the way the SDK's push_reply checks it. */

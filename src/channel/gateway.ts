@@ -28,7 +28,13 @@ import {
   type LinkState,
   type Logger,
 } from "../shared/contracts.ts";
-import { resolvePipbitAccount, type ResolvedPipbitAccount } from "./base.ts";
+import {
+  collectPipbitConfigIssues,
+  describePipbitAccount,
+  PIPBIT_CONFIG_ISSUES_KEY,
+  resolvePipbitAccount,
+  type ResolvedPipbitAccount,
+} from "./base.ts";
 import { isAgentSelectionRequired } from "./config-checks.ts";
 import { createTurnHandler, errorSummary, PIPBIT_DM_SCOPE, type PipbitTurnHandler } from "./inbound.ts";
 import { registerRunningAccount, type RunningAccount } from "./registry.ts";
@@ -59,6 +65,8 @@ export interface PipbitGatewayOptions {
   activityThrottleMs?: number;
   /** How long `stop` waits for the client (ms); OpenClaw allows about 5 s. */
   stopTimeoutMs?: number;
+  /** How often a running account re-publishes its config issues (ms). */
+  configIssuesRefreshMs?: number;
 }
 
 type GatewayAdapter = NonNullable<ChannelPlugin<ResolvedPipbitAccount>["gateway"]>;
@@ -67,6 +75,9 @@ type ChannelRuntime = PluginRuntime["channel"];
 
 const DEFAULT_ACTIVITY_THROTTLE_MS = 5_000;
 const DEFAULT_STOP_TIMEOUT_MS = 4_000;
+// A tools.* or agents.* edit hot-reloads without restarting the channel, so
+// a fixed (or newly broken) config shows within this long without a turn.
+const DEFAULT_CONFIG_ISSUES_REFRESH_MS = 30_000;
 
 export function createPipbitGatewayAdapter(options: PipbitGatewayOptions): GatewayAdapter {
   const now = options.now ?? (() => Date.now());
@@ -74,6 +85,7 @@ export function createPipbitGatewayAdapter(options: PipbitGatewayOptions): Gatew
   const stateDirOf = options.stateDir ?? (() => resolvePipbitStateDir());
   const activityThrottleMs = options.activityThrottleMs ?? DEFAULT_ACTIVITY_THROTTLE_MS;
   const stopTimeoutMs = options.stopTimeoutMs ?? DEFAULT_STOP_TIMEOUT_MS;
+  const configIssuesRefreshMs = options.configIssuesRefreshMs ?? DEFAULT_CONFIG_ISSUES_REFRESH_MS;
   const stopping = new WeakMap<ConnectClientApi, Promise<void>>();
   const running = new Map<string, { entry: RunningAccount; handler: PipbitTurnHandler }>();
 
@@ -127,15 +139,17 @@ export function createPipbitGatewayAdapter(options: PipbitGatewayOptions): Gatew
     };
 
     const account = ctx.account;
+    // The account's own facts ride with every patch that can be the run's
+    // last, since a 2026.10 plain status read shows only what was published.
     if (!account || !account.configured || !account.agentName) {
-      setStatus(blockedStatusPatch(accountId, MESSAGES.notSetUp));
+      setStatus({ ...(account ? describePipbitAccount(account) : {}), ...blockedStatusPatch(accountId, MESSAGES.notSetUp) });
       logger.warn(`pipbit: account ${accountId} is not set up; not connecting`);
       return;
     }
     const agentName = account.agentName;
     const secret = resolveSecretValue(account.secret, env());
     if (!secret.ok) {
-      setStatus(blockedStatusPatch(accountId, secret.message));
+      setStatus({ ...describePipbitAccount(account), ...blockedStatusPatch(accountId, secret.message) });
       logger.warn(`pipbit: account ${accountId} has no usable secret; not connecting`);
       return;
     }
@@ -192,6 +206,29 @@ export function createPipbitGatewayAdapter(options: PipbitGatewayOptions): Gatew
     }
     const unregister = registerRunningAccount(entry);
 
+    // What the status adapter says about the config (OpenClaw cannot tell
+    // which agent answers, or its tool policy removes pipbit_handback),
+    // published while the account runs. From OpenClaw 2026.10 a plain status
+    // read shows only what setStatus published (status.ts); 2026.9 still
+    // runs the adapter, which recomputes the list from the config it reads.
+    let accountRunning = true;
+    let lastConfigIssues = "";
+    const publishConfigIssues = async (): Promise<void> => {
+      let issues: Awaited<ReturnType<typeof collectPipbitConfigIssues>>;
+      try {
+        issues = await collectPipbitConfigIssues(configFor(ctx), account);
+      } catch {
+        return;
+      }
+      const key = JSON.stringify(issues);
+      if (!accountRunning || key === lastConfigIssues) {
+        return;
+      }
+      lastConfigIssues = key;
+      setStatus({ accountId, [PIPBIT_CONFIG_ISSUES_KEY]: issues.length > 0 ? issues : undefined } as ChannelAccountSnapshot);
+    };
+    let configIssuesTimer: ReturnType<typeof setInterval> | null = null;
+
     let lastActivityAt = 0;
     const handler = createTurnHandler({
       accountId,
@@ -212,7 +249,10 @@ export function createPipbitGatewayAdapter(options: PipbitGatewayOptions): Gatew
       onGreeting: (greeting) => {
         void writer.update({ lastIntroAt: new Date(now()).toISOString(), lastGreeting: greeting });
       },
-      onInbound: () => setStatus({ accountId, lastInboundAt: now() }),
+      onInbound: () => {
+        setStatus({ accountId, lastInboundAt: now() });
+        void publishConfigIssues();
+      },
       onOutbound: () => setStatus({ accountId, lastOutboundAt: now() }),
       now,
     });
@@ -282,7 +322,18 @@ export function createPipbitGatewayAdapter(options: PipbitGatewayOptions): Gatew
     let client: ConnectClientApi | null = null;
     let removeStateFile = false;
     try {
-      setStatus({ accountId, running: true, connected: false, lifecycle: "starting", stateReason: "Connecting" });
+      setStatus({
+        ...describePipbitAccount(account),
+        accountId,
+        running: true,
+        connected: false,
+        lifecycle: "starting",
+        stateReason: "Connecting",
+        statusState: "Connecting",
+      });
+      void publishConfigIssues();
+      configIssuesTimer = setInterval(() => void publishConfigIssues(), configIssuesRefreshMs);
+      configIssuesTimer.unref?.();
       void writer.update({ agentName, link: "connecting", reason: null, detail: null });
       client = options.createClient({
         agent: agentName,
@@ -315,6 +366,16 @@ export function createPipbitGatewayAdapter(options: PipbitGatewayOptions): Gatew
         removeStateFile = isRemovedFromConfig(configFor(ctx), accountId);
       }
     } finally {
+      accountRunning = false;
+      if (configIssuesTimer) {
+        clearInterval(configIssuesTimer);
+      }
+      if (lastConfigIssues !== "" && lastConfigIssues !== "[]") {
+        // Withdrawn with the run: on a 2026.10 plain read a stopped or
+        // refused account would otherwise keep a warning the person may
+        // already have fixed (a probe and 2026.9 compute a fresh list).
+        setStatus({ accountId, [PIPBIT_CONFIG_ISSUES_KEY]: undefined } as ChannelAccountSnapshot);
+      }
       ctx.abortSignal.removeEventListener("abort", onAbort);
       handler.abortAll();
       running.delete(accountId);
